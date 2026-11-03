@@ -1,12 +1,10 @@
 import asyncio
 import os
 import sys
-import time
 from datetime import datetime
 
 from telegram import Update, LinkPreviewOptions
 from telegram.ext import Application, ContextTypes
-from telegram.error import RetryAfter, TimedOut, NetworkError
 from telegram.request import HTTPXRequest
 
 from config import (
@@ -30,7 +28,6 @@ BOT_START_TIME = datetime.now()
 
 
 async def startup(app: Application):
-    """Run on bot startup."""
     logger.info("=" * 60)
     logger.info("𝑶𝑮𝑮𝒀'𝑺 𝑷𝑹𝑰𝑴𝑬 𝑩𝑶𝑻")
     logger.info("Built by @oggyproo")
@@ -47,13 +44,10 @@ async def startup(app: Application):
 
 
 async def shutdown(app: Application):
-    """Run on bot shutdown."""
-    logger.info("𝑶𝑮𝑮𝒀'𝑺 𝑷𝑹𝑰𝑴𝑬 𝑩𝑶𝑻 offline ")
+    logger.info("𝑶𝑮𝑮𝒀'𝑺 𝑷𝑹𝑰𝑴𝑬 𝑩𝑶𝑻 offline")
 
 
 class LockedApplication(Application):
-    """Application with global lock check."""
-
     async def process_update(self, update, *args, **kwargs):
         if update.effective_user:
             user_id = update.effective_user.id
@@ -64,11 +58,7 @@ class LockedApplication(Application):
             if update.message and update.message.text:
                 text = update.message.text
                 if text.startswith("/lock") or text.startswith("/unlock"):
-                    return await super().process_update(
-                        update,
-                        *args,
-                        **kwargs
-                    )
+                    return await super().process_update(update, *args, **kwargs)
 
             if is_bot_locked():
                 if update.message:
@@ -83,29 +73,19 @@ Please wait until it's unlocked.
 <a href='https://t.me/oggyproo'>⌬</a> <b>𝐃𝐞𝐯</b> ➠ <a href='https://t.me/{OWNER_USERNAME}'>{OWNER_NAME}</a>
 """,
                         parse_mode="HTML",
-                        link_preview_options=LinkPreviewOptions(
-                            is_disabled=True
-                        )
+                        link_preview_options=LinkPreviewOptions(is_disabled=True),
                     )
-
                 elif update.callback_query:
                     await update.callback_query.answer(
                         "🔒 Bot is locked. Try again later.",
-                        show_alert=True
+                        show_alert=True,
                     )
-
                 return
 
-        return await super().process_update(
-            update,
-            *args,
-            **kwargs
-        )
+        return await super().process_update(update, *args, **kwargs)
 
 
 def create_application() -> Application:
-    """Create and configure the bot application."""
-
     try:
         logger.info("Creating application...")
 
@@ -125,32 +105,23 @@ def create_application() -> Application:
         )
 
         if app is None:
-            raise RuntimeError(
-                "Application builder returned None"
-            )
+            raise RuntimeError("Application builder returned None")
 
         logger.info("Application built successfully")
 
         register_handlers(app)
         register_gates(app)
-
         app.add_error_handler(global_error_handler)
 
-        logger.info(
-            "Handlers, gates, and error handler registered"
-        )
-
+        logger.info("Handlers, gates, and error handler registered")
         return app
 
     except Exception as e:
-        logger.exception(
-            f"Failed to create application: {e}"
-        )
+        logger.exception(f"Failed to create application: {e}")
         raise
 
 
 async def delete_webhook(app: Application):
-    """Delete any active webhook to prevent polling conflicts."""
     try:
         logger.info("Deleting active webhook if any...")
         await app.bot.delete_webhook(drop_pending_updates=True)
@@ -160,29 +131,22 @@ async def delete_webhook(app: Application):
 
 
 def main():
-    """Start the bot."""
-
     print("🔴 main() called")
     print_banner()
     print("🟡 Creating application...")
 
     try:
         app = create_application()
-
     except Exception as e:
-        logger.critical(
-            f"Fatal error during application creation: {e}"
-        )
+        logger.critical(f"Fatal error during application creation: {e}")
         sys.exit(1)
 
     if app is None:
-        logger.critical(
-            "Application is None after creation. Exiting."
-        )
+        logger.critical("Application is None after creation. Exiting.")
         sys.exit(1)
 
     print("🟢 Application created")
-    
+
     try:
         asyncio.run(delete_webhook(app))
     except Exception as e:
@@ -192,25 +156,20 @@ def main():
 
     app.run_polling(
         drop_pending_updates=True,
-        allowed_updates=None
+        allowed_updates=None,
     )
 
     print("🔵 Polling ended")
 
 
 if __name__ == "__main__":
-
     try:
         import fcntl
 
         LOCK_FILE = "/tmp/bot.lock"
         lock_fd = open(LOCK_FILE, "w")
 
-        fcntl.flock(
-            lock_fd,
-            fcntl.LOCK_EX | fcntl.LOCK_NB
-        )
-
+        fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
         lock_fd.write(str(os.getpid()))
         lock_fd.flush()
 
@@ -221,25 +180,14 @@ if __name__ == "__main__":
 
     try:
         main()
-
     except KeyboardInterrupt:
-        logger.warning(
-            "Bot stopped by keyboard."
-        )
-
+        logger.warning("Bot stopped by keyboard.")
     except Exception as e:
-        logger.exception(
-            f"Fatal startup error: {e}"
-        )
-
+        logger.exception(f"Fatal startup error: {e}")
     finally:
         try:
-            fcntl.flock(
-                lock_fd,
-                fcntl.LOCK_UN
-            )
+            fcntl.flock(lock_fd, fcntl.LOCK_UN)
             lock_fd.close()
             os.remove(LOCK_FILE)
-
-        except:
+        except Exception:
             pass
