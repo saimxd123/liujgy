@@ -51,10 +51,10 @@ def get_logger(name: str):
     if logger.handlers:
         return logger
 
-    logger.setLevel(logging.WARNING)
+    logger.setLevel(logging.INFO)
 
     console = FlushStreamHandler(sys.stdout)
-    console.setLevel(logging.WARNING)
+    console.setLevel(logging.INFO)
     console.setFormatter(console_formatter)
 
     error_handler = RotatingFileHandler(
