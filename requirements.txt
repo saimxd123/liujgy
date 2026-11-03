@@ -7,3 +7,5 @@ Pillow==10.4.0
 uvloop==0.19.0
 aiosqlite==0.20.0
 colorama==0.4.6
+beautifulsoup4==4.12.3
+faker==25.0.1
