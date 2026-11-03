@@ -1,23 +1,10 @@
-
-
 import os
-from pathlib import Path
+import logging
 from dotenv import load_dotenv
 
-from logger import get_logger
+load_dotenv()
 
-logger = get_logger("CONFIG")
-
-
-ROOT_DIR = Path(__file__).resolve().parent
-DATA_DIR = ROOT_DIR / "data"
-LOG_DIR = ROOT_DIR / "logs"
-ASSETS_DIR = ROOT_DIR / "assets"
-
-for folder in (DATA_DIR, LOG_DIR, ASSETS_DIR):
-    folder.mkdir(parents=True, exist_ok=True)
-
-load_dotenv(ROOT_DIR / ".env")
+logger = logging.getLogger("CONFIG")
 
 
 def required(name: str) -> str:
@@ -28,59 +15,44 @@ def required(name: str) -> str:
     return value
 
 
+def optional(name: str, default: str = "") -> str:
+    return os.getenv(name, default) or default
+
+
+# ── Required ──────────────────────────────────────────────
 BOT_TOKEN = required("BOT_TOKEN")
-OWNER_ID = int(required("OWNER_ID"))
-OWNER_USERNAME = required("OWNER_USERNAME")
-OWNER_NAME = os.getenv("OWNER_NAME", "𝑶𝑮𝑮𝒀 𝑷𝑹𝑶𝑶")
 
-START_PHOTO = "OGGY.jpg"
-START_PHOTO_PATH = ASSETS_DIR / START_PHOTO
+# ── Owner (defaulted to your values) ─────────────────────
+OWNER_ID = int(optional("OWNER_ID", "8919487892"))
+OWNER_USERNAME = optional("OWNER_USERNAME", "oggyproo").lstrip("@")
+OWNER_NAME = optional("OWNER_NAME", "OGGY")
 
-if not START_PHOTO_PATH.exists():
-    START_PHOTO_PATH = ROOT_DIR / "OGGY.jpg"
-    if not START_PHOTO_PATH.exists():
-        logger.warning(f"START_PHOTO not found at {START_PHOTO_PATH}")
-        START_PHOTO_PATH = ASSETS_DIR / "default.jpg"
+# ── Userbot (NOT NEEDED unless you add Pyrogram features) ─
+API_ID = optional("API_ID", "")
+API_HASH = optional("API_HASH", "")
+SESSION_STRING = optional("SESSION_STRING", "")
 
-API_ID = int(required("API_ID"))
-API_HASH = required("API_HASH")
-SESSION_STRING = required("SESSION_STRING")
+# ── Database ─────────────────────────────────────────────
+DATABASE_URL = optional("DATABASE_URL", "")
+if not DATABASE_URL:
+    logger.warning(
+        "DATABASE_URL not set — DB features will fail unless your code "
+        "falls back to SQLite."
+    )
 
-DEFAULT_LIMIT = int(os.getenv("DEFAULT_LIMIT", "100"))
-PREMIUM_LIMIT = int(os.getenv("PREMIUM_LIMIT", "5000"))
+# ── Banner photo (graceful fallback) ─────────────────────
+_photo_candidates = [
+    "OGGY.jpg", "OGGY.jpeg", "OGGY.png",
+    "assets/OGGY.jpg", "assets/OGGY.jpeg", "assets/OGGY.png",
+]
+START_PHOTO_PATH = None
+for _p in _photo_candidates:
+    if os.path.isfile(_p):
+        START_PHOTO_PATH = _p
+        break
 
-BOT_USERNAME = os.getenv("BOT_USERNAME", "OggyPrimeBotrobot")
-
-# Multi-API support: primary + owner-added extras
-API_BASE_URL = os.getenv("API_BASE_URL", "https://check.yzio.app")
-# Extra API URLs (owner-added), stored as comma-separated in env
-EXTRA_API_URLS_RAW = os.getenv("EXTRA_API_URLS", "")
-
-def get_all_api_urls() -> list:
-    """Return list of all API URLs (primary + extras)."""
-    urls = [API_BASE_URL]
-    if EXTRA_API_URLS_RAW:
-        for u in EXTRA_API_URLS_RAW.split(","):
-            u = u.strip()
-            if u and u not in urls:
-                urls.append(u)
-    return urls
-
-TEST_CARD = os.getenv("TEST_CARD", "")
-REQUEST_TIMEOUT = int(os.getenv("REQUEST_TIMEOUT", "30"))
-MAX_RETRIES = int(os.getenv("MAX_RETRIES", "3"))
-
-DATABASE_URL = required("DATABASE_URL")
-USE_POSTGRES = os.getenv("USE_POSTGRES", "true").lower() == "true"
-DATABASE_PATH = os.getenv("DATABASE_PATH", str(DATA_DIR / "bot.db"))
-
-LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
-
-logger.info("Configuration loaded successfully.")
-logger.info(f"Database : PostgreSQL")
-logger.info(f"API      : {API_BASE_URL}")
-logger.info(f"LogLevel : {LOG_LEVEL}")
-logger.info(f"Owner ID : {OWNER_ID}")
-logger.info(f"Owner Username : {OWNER_USERNAME}")
-logger.info(f"Owner Name : {OWNER_NAME}")
-logger.info(f"Start Photo : {START_PHOTO_PATH}")
+if not START_PHOTO_PATH:
+    logger.warning(
+        "START_PHOTO not found — /start will fall back to text. "
+        "Add OGGY.jpg to the repo root to restore the banner."
+    )
