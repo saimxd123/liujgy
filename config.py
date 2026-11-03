@@ -22,37 +22,40 @@ def optional(name: str, default: str = "") -> str:
 # ── Required ──────────────────────────────────────────────
 BOT_TOKEN = required("BOT_TOKEN")
 
-# ── Owner (defaulted to your values) ─────────────────────
+# ── Owner ────────────────────────────────────────────────
 OWNER_ID = int(optional("OWNER_ID", "8919487892"))
 OWNER_USERNAME = optional("OWNER_USERNAME", "oggyproo").lstrip("@")
 OWNER_NAME = optional("OWNER_NAME", "OGGY")
 
-# ── Userbot (NOT NEEDED unless you add Pyrogram features) ─
+# ── Userbot (optional — leave blank) ─────────────────────
 API_ID = optional("API_ID", "")
 API_HASH = optional("API_HASH", "")
 SESSION_STRING = optional("SESSION_STRING", "")
 
-# ── Database ─────────────────────────────────────────────
+# ── Database (fallback to SQLite) ────────────────────────
 DATABASE_URL = optional("DATABASE_URL", "")
 if not DATABASE_URL:
+    DATABASE_URL = "sqlite:///bot.db"
     logger.warning(
-        "DATABASE_URL not set — DB features will fail unless your code "
-        "falls back to SQLite."
+        "DATABASE_URL not set — using SQLite at ./bot.db. "
+        "Add a DATABASE_URL for persistence across deploys."
     )
 
-# ── Banner photo (graceful fallback) ─────────────────────
+# ── Banner photo ─────────────────────────────────────────
 _photo_candidates = [
     "OGGY.jpg", "OGGY.jpeg", "OGGY.png",
     "assets/OGGY.jpg", "assets/OGGY.jpeg", "assets/OGGY.png",
 ]
-START_PHOTO_PATH = None
+START_PHOTO = None
 for _p in _photo_candidates:
     if os.path.isfile(_p):
-        START_PHOTO_PATH = _p
+        START_PHOTO = _p
         break
 
-if not START_PHOTO_PATH:
+START_PHOTO_PATH = START_PHOTO  # alias
+
+if not START_PHOTO:
     logger.warning(
         "START_PHOTO not found — /start will fall back to text. "
-        "Add OGGY.jpg to the repo root to restore the banner."
+        "Add OGGY.jpg to the repo root to enable the banner."
     )
