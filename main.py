@@ -1,5 +1,3 @@
-
-
 import asyncio
 import os
 import sys
@@ -33,15 +31,10 @@ BOT_START_TIME = datetime.now()
 
 async def startup(app: Application):
     """Run on bot startup."""
-
-
-
-
     logger.info("=" * 60)
     logger.info("𝑶𝑮𝑮𝒀'𝑺 𝑷𝑹𝑰𝑴𝑬 𝑩𝑶𝑻")
     logger.info("Built by @oggyproo")
     logger.info("=" * 60)
-
 
     try:
         from handlers.premium_notify import start_premium_notification_worker
@@ -65,21 +58,17 @@ class LockedApplication(Application):
         if update.effective_user:
             user_id = update.effective_user.id
 
-
             if user_id == OWNER_ID:
                 return await super().process_update(update, *args, **kwargs)
 
-
             if update.message and update.message.text:
                 text = update.message.text
-
                 if text.startswith("/lock") or text.startswith("/unlock"):
                     return await super().process_update(
                         update,
                         *args,
                         **kwargs
                     )
-
 
             if is_bot_locked():
                 if update.message:
@@ -142,10 +131,8 @@ def create_application() -> Application:
 
         logger.info("Application built successfully")
 
-
         register_handlers(app)
         register_gates(app)
-
 
         app.add_error_handler(global_error_handler)
 
@@ -160,6 +147,16 @@ def create_application() -> Application:
             f"Failed to create application: {e}"
         )
         raise
+
+
+async def delete_webhook(app: Application):
+    """Delete any active webhook to prevent polling conflicts."""
+    try:
+        logger.info("Deleting active webhook if any...")
+        await app.bot.delete_webhook(drop_pending_updates=True)
+        logger.info("Webhook deleted successfully.")
+    except Exception as e:
+        logger.warning(f"Failed to delete webhook: {e}")
 
 
 def main():
@@ -185,6 +182,12 @@ def main():
         sys.exit(1)
 
     print("🟢 Application created")
+    
+    try:
+        asyncio.run(delete_webhook(app))
+    except Exception as e:
+        logger.warning(f"Could not run delete_webhook loop: {e}")
+
     logger.info("Starting polling...")
 
     app.run_polling(
