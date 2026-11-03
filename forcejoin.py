@@ -1,5 +1,3 @@
-
-
 from functools import wraps
 import logging
 
@@ -19,12 +17,8 @@ logger = logging.getLogger("force_join")
 logger.setLevel(logging.INFO)
 
 
-
-
-
-
 GROUP_ID = -1003961477688
-GROUP_USERNAME = "+Y1hpddJIEPw1ZGVl"
+GROUP_USERNAME = "oggyproo_group" # CHANGE THIS TO YOUR ACTUAL PUBLIC GROUP USERNAME
 
 CHANNEL_ID = -1004311992962
 CHANNEL_USERNAME = "oggyproo"
@@ -43,19 +37,11 @@ def _get_required_channels_dynamic():
 FORCE_JOIN_IMAGE = "OGGY.jpg"
 
 
-
-
-
-
 class ButtonEmoji:
     GROUP = "6043995137049104461"
     CHANNEL = "6044184811394831904"
     CHECK = "6044262726396546853"
     LOGS = "6044260346984665434"
-
-
-
-
 
 
 async def safe_get_member(bot, chat_id: int, user_id: int):
@@ -67,23 +53,11 @@ async def safe_get_member(bot, chat_id: int, user_id: int):
 
     try:
         member = await bot.get_chat_member(chat_id, user_id)
-
-        logger.debug(
-            "User %s in %s: %s",
-            user_id,
-            chat_id,
-            member.status,
-        )
-
+        logger.debug("User %s in %s: %s", user_id, chat_id, member.status)
         return member.status
 
     except Exception as exc:
-        logger.warning(
-            "Failed to get member %s in %s: %s",
-            user_id,
-            chat_id,
-            exc,
-        )
+        logger.warning("Failed to get member %s in %s: %s", user_id, chat_id, exc)
         return None
 
 
@@ -104,49 +78,19 @@ async def is_user_joined(bot, user_id: int) -> bool:
         "creator",
     )
 
-
-    group_status = await safe_get_member(
-        bot,
-        GROUP_ID,
-        user_id,
-    )
-
+    group_status = await safe_get_member(bot, GROUP_ID, user_id)
     if group_status not in valid_statuses:
-        logger.warning(
-            "User %s NOT in group (%s)",
-            user_id,
-            group_status,
-        )
+        logger.warning("User %s NOT in group (%s)", user_id, group_status)
         return False
 
-
-    channel_status = await safe_get_member(
-        bot,
-        CHANNEL_ID,
-        user_id,
-    )
-
+    channel_status = await safe_get_member(bot, CHANNEL_ID, user_id)
     if channel_status not in valid_statuses:
-        logger.warning(
-            "User %s NOT in channel (%s)",
-            user_id,
-            channel_status,
-        )
+        logger.warning("User %s NOT in channel (%s)", user_id, channel_status)
         return False
 
-
-    logs_status = await safe_get_member(
-        bot,
-        LOGS_CHAT_ID,
-        user_id,
-    )
-
+    logs_status = await safe_get_member(bot, LOGS_CHAT_ID, user_id)
     if logs_status not in valid_statuses:
-        logger.warning(
-            "User %s NOT in logs chat (%s)",
-            user_id,
-            logs_status,
-        )
+        logger.warning("User %s NOT in logs chat (%s)", user_id, logs_status)
         return False
 
     # Check owner-added required channels
@@ -158,10 +102,6 @@ async def is_user_joined(bot, user_id: int) -> bool:
 
     logger.info("User %s is in group, channel & logs chat", user_id)
     return True
-
-
-
-
 
 
 def get_force_join_buttons():
@@ -197,7 +137,7 @@ def get_force_join_buttons():
         uname = ch.get("username", "")
         title = ch.get("title", "Join Channel")
         if uname:
-            url = f"https://t.me/{uname}" if not uname.startswith("+") else f"https://t.me/{uname}"
+            url = f"https://t.me/{uname}"
             buttons.append([
                 InlineKeyboardButton(
                     text=f"Join {title}",
@@ -219,10 +159,6 @@ def get_force_join_buttons():
     return InlineKeyboardMarkup(buttons)
 
 
-
-
-
-
 def force_join(func):
 
     @wraps(func)
@@ -240,26 +176,14 @@ def force_join(func):
 
         user_id = user.id
 
-
-
-
-
         try:
             banned = is_banned(user_id)
         except Exception as exc:
-            logger.error(
-                "Failed to check ban status for %s: %s",
-                user_id,
-                exc,
-            )
+            logger.error("Failed to check ban status for %s: %s", user_id, exc)
             banned = False
 
         if banned:
-            logger.warning(
-                "Banned user blocked: %s",
-                user_id,
-            )
-
+            logger.warning("Banned user blocked: %s", user_id)
             banned_text = f"""
 <blockquote><b>🚫 You Are Banned</b></blockquote>
 
@@ -269,42 +193,20 @@ If you believe this is a mistake, please contact support:
 
 <b>Dev</b> ➠ <a href="https://t.me/{OWNER_USERNAME}">{OWNER_NAME}</a>
 """
-
             message = update.effective_message
-
             if message:
                 try:
                     await message.reply_text(
                         banned_text,
                         parse_mode="HTML",
-                        link_preview_options=LinkPreviewOptions(
-                            is_disabled=True
-                        ),
+                        link_preview_options=LinkPreviewOptions(is_disabled=True),
                     )
                 except Exception as exc:
-                    logger.warning(
-                        "Could not send banned message to %s: %s",
-                        user_id,
-                        exc,
-                    )
-
+                    logger.warning("Could not send banned message to %s: %s", user_id, exc)
             return
 
-
-
-
-
         if user_id == OWNER_ID:
-            return await func(
-                update,
-                context,
-                *args,
-                **kwargs,
-            )
-
-
-
-
+            return await func(update, context, *args, **kwargs)
 
         message = update.effective_message
 
@@ -315,14 +217,9 @@ If you believe this is a mistake, please contact support:
         )
 
         if is_start_command:
-
-            joined = await is_user_joined(
-                context.bot,
-                user_id,
-            )
+            joined = await is_user_joined(context.bot, user_id)
 
             if not joined:
-
                 caption_text = (
                     "❌ <b>Unlock access to the bot by joining</b>\n"
                     "our channel, group, and logs chat 👇\n\n"
@@ -336,10 +233,6 @@ If you believe this is a mistake, please contact support:
                 if not message:
                     return
 
-
-
-
-
                 try:
                     await message.reply_photo(
                         photo=FORCE_JOIN_IMAGE,
@@ -347,81 +240,38 @@ If you believe this is a mistake, please contact support:
                         parse_mode="HTML",
                         reply_markup=get_force_join_buttons(),
                     )
-
                 except Exception as exc:
-                    logger.error(
-                        "Failed to send force join image to %s: %s",
-                        user_id,
-                        exc,
-                    )
-
-
-
-
-
+                    logger.error("Failed to send force join image to %s: %s", user_id, exc)
                     try:
                         await message.reply_text(
                             caption_text,
                             parse_mode="HTML",
                             reply_markup=get_force_join_buttons(),
-                            link_preview_options=LinkPreviewOptions(
-                                is_disabled=True
-                            ),
+                            link_preview_options=LinkPreviewOptions(is_disabled=True),
                         )
-
                     except Exception as fallback_exc:
-                        logger.warning(
-                            "Failed to send force join fallback to %s: %s",
-                            user_id,
-                            fallback_exc,
-                        )
-
+                        logger.warning("Failed to send force join fallback to %s: %s", user_id, fallback_exc)
                 return
 
-
-
-
-
-        return await func(
-            update,
-            context,
-            *args,
-            **kwargs,
-        )
+        return await func(update, context, *args, **kwargs)
 
     return wrapper
 
 
-
-
-
-
-async def check_joined_callback(
-    update: Update,
-    context: ContextTypes.DEFAULT_TYPE,
-):
+async def check_joined_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle the 'I have joined' callback."""
 
     query = update.callback_query
-
     if not query:
         return
 
     user = query.from_user
-
     if not user:
         return
 
     user_id = user.id
 
-
-
-
-
-
-
     if user_id == OWNER_ID:
-
         try:
             await query.edit_message_caption(
                 caption=(
@@ -432,35 +282,19 @@ async def check_joined_callback(
                     f"{OWNER_NAME}</a>"
                 ),
                 parse_mode="HTML",
-                link_preview_options=LinkPreviewOptions(
-                    is_disabled=True
-                ),
+                link_preview_options=LinkPreviewOptions(is_disabled=True),
             )
-
         except Exception as exc:
-            logger.debug(
-                "Could not edit owner force-join message: %s",
-                exc,
-            )
-
+            logger.debug("Could not edit owner force-join message: %s", exc)
         return
-
-
-
-
 
     try:
         banned = is_banned(user_id)
     except Exception as exc:
-        logger.error(
-            "Failed to check ban status for %s: %s",
-            user_id,
-            exc,
-        )
+        logger.error("Failed to check ban status for %s: %s", user_id, exc)
         banned = False
 
     if banned:
-
         banned_text = f"""
 <blockquote><b>🚫 You Are Banned</b></blockquote>
 
@@ -470,45 +304,20 @@ If you believe this is a mistake, please contact support.
 
 <b>Dev</b> ➠ <a href="https://t.me/{OWNER_USERNAME}">{OWNER_NAME}</a>
 """
-
         try:
             await query.edit_message_caption(
                 caption=banned_text,
                 parse_mode="HTML",
-                link_preview_options=LinkPreviewOptions(
-                    is_disabled=True
-                ),
+                link_preview_options=LinkPreviewOptions(is_disabled=True),
             )
-
         except Exception as exc:
-            logger.debug(
-                "Could not edit banned message for %s: %s",
-                user_id,
-                exc,
-            )
-
+            logger.debug("Could not edit banned message for %s: %s", user_id, exc)
         return
 
-
-
-
-
-    logger.info(
-        "Checking force-join status for user %s",
-        user_id,
-    )
-
-    joined = await is_user_joined(
-        context.bot,
-        user_id,
-    )
-
-
-
-
+    logger.info("Checking force-join status for user %s", user_id)
+    joined = await is_user_joined(context.bot, user_id)
 
     if joined:
-
         try:
             await query.edit_message_caption(
                 caption=(
@@ -522,23 +331,11 @@ If you believe this is a mistake, please contact support.
                 ),
                 parse_mode="HTML",
                 reply_markup=None,
-                link_preview_options=LinkPreviewOptions(
-                    is_disabled=True
-                ),
+                link_preview_options=LinkPreviewOptions(is_disabled=True),
             )
-
         except Exception as exc:
-            logger.debug(
-                "Could not edit successful join message for %s: %s",
-                user_id,
-                exc,
-            )
-
+            logger.debug("Could not edit successful join message for %s: %s", user_id, exc)
         return
-
-
-
-
 
     try:
         await query.edit_message_caption(
@@ -549,21 +346,10 @@ If you believe this is a mistake, please contact support.
             ),
             parse_mode="HTML",
             reply_markup=get_force_join_buttons(),
-            link_preview_options=LinkPreviewOptions(
-                is_disabled=True
-            ),
+            link_preview_options=LinkPreviewOptions(is_disabled=True),
         )
-
     except Exception as exc:
-        logger.debug(
-            "Could not edit failed join message for %s: %s",
-            user_id,
-            exc,
-        )
-
-
-
-
+        logger.debug("Could not edit failed join message for %s: %s", user_id, exc)
 
 
 __all__ = [
