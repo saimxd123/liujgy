@@ -1,14 +1,12 @@
 import asyncio
 import os
 import sys
-from datetime import datetime
 
 from telegram import Update, LinkPreviewOptions
 from telegram.ext import Application
 from telegram.request import HTTPXRequest
 
 from config import BOT_TOKEN, OWNER_ID, OWNER_USERNAME, OWNER_NAME
-
 from logger import get_logger, print_banner
 from handlers import register_handlers
 from gates import register_gates
@@ -20,41 +18,39 @@ logger = get_logger(__name__)
 
 
 # ═══════════════════════════════════════════════════════════
-# Lifecycle
+# Startup tasks (run BEFORE polling)
 # ═══════════════════════════════════════════════════════════
-async def startup(app: Application):
-    """Runs on post_init — a fresh loop is active here."""
-
-    # 1. Delete any stale webhook so polling can start
+async def run_startup_tasks(app: Application):
+    logger.info("▶️ [STARTUP 1/4] Deleting webhook...")
     try:
-        logger.info("Deleting active webhook if any...")
         await app.bot.delete_webhook(drop_pending_updates=True)
-        logger.info("Webhook deleted successfully.")
+        logger.info("✅ [STARTUP 1/4] Webhook deleted")
     except Exception as e:
-        logger.warning(f"Failed to delete webhook: {e}")
+        logger.warning(f"⚠️ [STARTUP 1/4] Webhook delete failed: {e}")
 
-    # 2. Init DB
+    logger.info("▶️ [STARTUP 2/4] Initializing database...")
     try:
         await init_db()
-        logger.info("✅ Database initialized")
+        logger.info("✅ [STARTUP 2/4] Database initialized")
     except Exception as e:
-        logger.exception(f"❌ Database init failed: {e}")
+        logger.exception(f"❌ [STARTUP 2/4] Database init failed: {e}")
 
-    # 3. Banner
-    logger.info("=" * 60)
-    logger.info("𝑶𝑮𝑮𝒀'𝑺 𝑷𝑹𝑰𝑴𝑬 𝑩𝑶𝑻")
-    logger.info("Built by @oggyproo")
-    logger.info("=" * 60)
+    logger.info("▶️ [STARTUP 3/4] Verifying bot identity with Telegram...")
+    try:
+        me = await app.bot.get_me()
+        logger.info(f"✅ [STARTUP 3/4] Connected as @{me.username} (id={me.id})")
+    except Exception as e:
+        logger.exception(f"❌ [STARTUP 3/4] Cannot reach Telegram API: {e}")
 
-    # 4. Premium notification worker (optional)
+    logger.info("▶️ [STARTUP 4/4] Starting premium notification worker...")
     try:
         from handlers.premium_notify import start_premium_notification_worker
         start_premium_notification_worker(app.bot)
-        logger.info("✅ Premium notification scheduler started")
+        logger.info("✅ [STARTUP 4/4] Premium notification worker started")
     except Exception as e:
-        logger.info(f"ℹ️ Premium notification worker skipped: {e}")
+        logger.info(f"ℹ️ [STARTUP 4/4] Premium worker skipped: {e}")
 
-    logger.info("🚀 All workers started successfully")
+    logger.info("🎉 All startup tasks complete")
 
 
 async def shutdown(app: Application):
@@ -62,7 +58,7 @@ async def shutdown(app: Application):
 
 
 # ═══════════════════════════════════════════════════════════
-# Global lock filter
+# Lock middleware
 # ═══════════════════════════════════════════════════════════
 class LockedApplication(Application):
     async def process_update(self, update, *args, **kwargs):
@@ -77,8 +73,9 @@ class LockedApplication(Application):
                     return await super().process_update(update, *args, **kwargs)
 
                 if update.message:
-                    await update.message.reply_text(
-                        f"""
+                    try:
+                        await update.message.reply_text(
+                            f"""
 {E.LOCK} ⌠ 𝘽𝙊𝙏 𝙄𝙎 𝙇𝙊𝘾𝙆𝙀𝘿 ⌡
 ━━━━━━━━━━━━━━━━━━
 Bot is under maintenance.
@@ -87,13 +84,18 @@ Try again later.
 ━━━━━━━━━━━━━━━━━━
 <a href='https://t.me/oggyproo'>⌬</a> <b>𝐃𝐞𝐯</b> ➠ <a href='https://t.me/{OWNER_USERNAME}'>{OWNER_NAME}</a>
 """,
-                        parse_mode="HTML",
-                        link_preview_options=LinkPreviewOptions(is_disabled=True),
-                    )
+                            parse_mode="HTML",
+                            link_preview_options=LinkPreviewOptions(is_disabled=True),
+                        )
+                    except Exception:
+                        pass
                 elif update.callback_query:
-                    await update.callback_query.answer(
-                        "🔒 Bot is locked. Try again later.", show_alert=True
-                    )
+                    try:
+                        await update.callback_query.answer(
+                            "🔒 Bot is locked. Try again later.", show_alert=True
+                        )
+                    except Exception:
+                        pass
                 return
 
         return await super().process_update(update, *args, **kwargs)
@@ -103,14 +105,13 @@ Try again later.
 # Build
 # ═══════════════════════════════════════════════════════════
 def create_application() -> Application:
-    logger.info("Creating application...")
+    logger.info("▶️ [CREATE 1/3] Building application...")
     request = HTTPXRequest(read_timeout=120, write_timeout=120, connect_timeout=60)
 
     app = (
         LockedApplication.builder()
         .token(BOT_TOKEN)
         .request(request)
-        .post_init(startup)
         .post_shutdown(shutdown)
         .build()
     )
@@ -118,13 +119,15 @@ def create_application() -> Application:
     if app is None:
         raise RuntimeError("Application builder returned None")
 
-    logger.info("Application built successfully")
+    logger.info("✅ [CREATE 1/3] Application built")
 
     register_handlers(app)
+    logger.info("✅ [CREATE 2/3] Handlers registered")
+
     register_gates(app)
     app.add_error_handler(global_error_handler)
+    logger.info("✅ [CREATE 3/3] Gates and error handler registered")
 
-    logger.info("Handlers, gates, and error handler registered")
     return app
 
 
@@ -134,14 +137,36 @@ def create_application() -> Application:
 def main():
     print_banner()
 
+    # Ensure a current event loop exists (Python 3.11 requirement)
+    try:
+        loop = asyncio.get_event_loop()
+        if loop.is_closed():
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+    logger.info("🔄 Event loop ready")
+
     try:
         app = create_application()
     except Exception as e:
-        logger.critical(f"Fatal error during application creation: {e}")
+        logger.critical(f"❌ Fatal during application creation: {e}")
         sys.exit(1)
 
-    logger.info("Starting polling...")
-    app.run_polling(drop_pending_updates=True, allowed_updates=None)
+    logger.info("▶️ Running startup tasks (webhook, DB, identity)...")
+    try:
+        loop.run_until_complete(run_startup_tasks(app))
+    except Exception as e:
+        logger.exception(f"❌ Startup tasks crashed: {e}")
+        # keep going - polling might still work
+
+    logger.info("🚀 Starting polling...")
+    try:
+        app.run_polling(drop_pending_updates=True)
+    except Exception as e:
+        logger.exception(f"❌ run_polling failed: {e}")
+        raise
 
 
 if __name__ == "__main__":
