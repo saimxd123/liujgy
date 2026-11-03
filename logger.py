@@ -20,6 +20,9 @@ except Exception:
 LOG_DIR = "logs"
 os.makedirs(LOG_DIR, exist_ok=True)
 
+BOT_LOG = os.path.join(LOG_DIR, "bot.log")
+ERR_LOG = os.path.join(LOG_DIR, "errors.log")
+
 
 class ColoredFormatter(logging.Formatter):
     def format(self, record):
@@ -46,28 +49,44 @@ class FlushStreamHandler(logging.StreamHandler):
         self.flush()
 
 
-def get_logger(name: str):
-    logger = logging.getLogger(name)
-    if logger.handlers:
-        return logger
+_shared_handlers = None
 
-    logger.setLevel(logging.INFO)
-
+def _build_handlers():
+    """Build the shared handler set ONCE and reuse across all loggers."""
     console = FlushStreamHandler(sys.stdout)
     console.setLevel(logging.INFO)
     console.setFormatter(console_formatter)
 
-    error_handler = RotatingFileHandler(
-        os.path.join(LOG_DIR, "errors.log"),
-        maxBytes=512 * 1024,
-        backupCount=1,
-        encoding="utf-8",
+    # full log
+    bot_handler = RotatingFileHandler(
+        BOT_LOG, maxBytes=2 * 1024 * 1024, backupCount=2, encoding="utf-8"
     )
-    error_handler.setLevel(logging.ERROR)
-    error_handler.setFormatter(file_formatter)
+    bot_handler.setLevel(logging.INFO)
+    bot_handler.setFormatter(file_formatter)
 
-    logger.addHandler(console)
-    logger.addHandler(error_handler)
+    # error-only log
+    err_handler = RotatingFileHandler(
+        ERR_LOG, maxBytes=1024 * 1024, backupCount=1, encoding="utf-8"
+    )
+    err_handler.setLevel(logging.ERROR)
+    err_handler.setFormatter(file_formatter)
+
+    return [console, bot_handler, err_handler]
+
+
+def get_logger(name: str):
+    global _shared_handlers
+    logger = logging.getLogger(name)
+    if logger.handlers:
+        return logger
+
+    if _shared_handlers is None:
+        _shared_handlers = _build_handlers()
+
+    logger.setLevel(logging.INFO)
+    for h in _shared_handlers:
+        logger.addHandler(h)
+
     logger.propagate = False
     return logger
 
