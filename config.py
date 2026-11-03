@@ -30,11 +30,24 @@ BOT_TOKEN = required("BOT_TOKEN")
 
 
 # ─────────────────────────────────────────────────────────
+# Bot identity
+# ─────────────────────────────────────────────────────────
+BOT_USERNAME = optional("BOT_USERNAME", "OggyPrimeBot").lstrip("@")
+BOT_NAME = optional("BOT_NAME", "OGGY PRIME BOT")
+
+
+# ─────────────────────────────────────────────────────────
 # Owner
 # ─────────────────────────────────────────────────────────
 OWNER_ID = int(optional("OWNER_ID", "8919487892"))
 OWNER_USERNAME = optional("OWNER_USERNAME", "oggyproo").lstrip("@")
 OWNER_NAME = optional("OWNER_NAME", "OGGY")
+
+
+# ─────────────────────────────────────────────────────────
+# Support / links
+# ─────────────────────────────────────────────────────────
+SUPPORT_USERNAME = optional("SUPPORT_USERNAME", OWNER_USERNAME).lstrip("@")
 
 
 # ─────────────────────────────────────────────────────────
@@ -56,7 +69,6 @@ if not DATABASE_URL:
         "Bot will work; data resets if Render wipes the disk."
     )
 
-# Kept for backwards-compat with any file that still imports it.
 USE_POSTGRES = DATABASE_URL.startswith(("postgres://", "postgresql://"))
 
 
@@ -64,6 +76,24 @@ USE_POSTGRES = DATABASE_URL.startswith(("postgres://", "postgresql://"))
 # API / gate helpers
 # ─────────────────────────────────────────────────────────
 API_BASE_URL = optional("API_BASE_URL", "")
+
+
+# ─────────────────────────────────────────────────────────
+# Log / force-join channels (only used if your code imports them)
+# ─────────────────────────────────────────────────────────
+LOG_CHANNEL_ID = optional("LOG_CHANNEL_ID", "")
+LOG_CHANNEL_USERNAME = optional("LOG_CHANNEL_USERNAME", "OGGYxLOGS").lstrip("@")
+
+CHANNEL_ID = optional("CHANNEL_ID", "")
+CHANNEL_USERNAME = optional("CHANNEL_USERNAME", "oggyproo").lstrip("@")
+
+GROUP_ID = optional("GROUP_ID", "")
+GROUP_USERNAME = optional("GROUP_USERNAME", "oggyproo_group").lstrip("@")
+
+LOGS_CHAT_ID = optional("LOGS_CHAT_ID", "")
+LOGS_CHAT_USERNAME = optional("LOGS_CHAT_USERNAME", "OGGYxLOGS").lstrip("@")
+
+FORCE_JOIN_IMAGE = optional("FORCE_JOIN_IMAGE", "OGGY.jpg")
 
 
 # ─────────────────────────────────────────────────────────
@@ -80,7 +110,6 @@ for _p in _photo_candidates:
         START_PHOTO = _p
         break
 
-# Alias — some modules import START_PHOTO, others START_PHOTO_PATH
 START_PHOTO_PATH = START_PHOTO
 
 if not START_PHOTO:
